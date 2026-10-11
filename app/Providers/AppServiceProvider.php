@@ -4,7 +4,9 @@ namespace App\Providers;
 
 use App\Models\AdminUser;
 use App\Models\Category;
+use App\Models\Destination;
 use App\Observers\CategoryObserver;
+use App\Observers\DestinationObserver;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Database\Events\TransactionCommitted;
@@ -24,6 +26,7 @@ class AppServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->app->singleton(CategoryObserver::class);
+        $this->app->singleton(DestinationObserver::class);
     }
 
     /**
@@ -33,10 +36,15 @@ class AppServiceProvider extends ServiceProvider
     {
         Gate::define('manage-admin-users', fn (Authenticatable $user): bool => $user instanceof AdminUser && $user->status);
         Gate::define('manage-categories', fn (Authenticatable $user): bool => $user instanceof AdminUser && $user->status);
+        Gate::define('manage-destinations', fn (Authenticatable $user): bool => $user instanceof AdminUser && $user->status);
 
         Category::observe(CategoryObserver::class);
         Event::listen(TransactionCommitted::class, [CategoryObserver::class, 'committed']);
         Event::listen(TransactionRolledBack::class, [CategoryObserver::class, 'rolledBack']);
+
+        Destination::observe(DestinationObserver::class);
+        Event::listen(TransactionCommitted::class, [DestinationObserver::class, 'committed']);
+        Event::listen(TransactionRolledBack::class, [DestinationObserver::class, 'rolledBack']);
 
         RateLimiter::for('login', function (Request $request): array {
             $email = $request->input('email');
