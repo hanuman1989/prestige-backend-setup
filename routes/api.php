@@ -3,6 +3,7 @@
 use App\Http\Controllers\Admin\AdminUserController;
 use App\Http\Controllers\Admin\AuthController as AdminAuthController;
 use App\Http\Controllers\Admin\CategoryController;
+use App\Http\Controllers\Admin\DestinationController;
 use App\Http\Controllers\AuthController;
 use Illuminate\Support\Facades\Route;
 
@@ -16,6 +17,7 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
             ->middleware('can:manage-admin-users')->name('admin-users.update-password');
         Route::apiResource('admin-users', AdminUserController::class)->parameters(['admin-users' => 'admin_user'])->middleware('can:manage-admin-users');
         Route::apiResource('categories', CategoryController::class)->middleware('can:manage-categories');
+        Route::apiResource('destinations', DestinationController::class)->middleware('can:manage-destinations');
     });
 });
 
