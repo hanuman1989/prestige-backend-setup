@@ -17,6 +17,9 @@ return [
 
     'category_images_disk' => env('CATEGORY_IMAGES_DISK', 'public'),
     'destination_images_disk' => env('DESTINATION_IMAGES_DISK', 'public'),
+    'car_category_images_disk' => env('CAR_CATEGORY_IMAGES_DISK', 'public'),
+    'car_images_disk' => env('CAR_IMAGES_DISK', 'public'),
+    'package_images_disk' => env('PACKAGE_IMAGES_DISK', 'public'),
 
     /*
     |--------------------------------------------------------------------------

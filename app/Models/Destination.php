@@ -6,6 +6,7 @@ use Database\Factories\DestinationFactory;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 
@@ -52,5 +53,10 @@ class Destination extends Model
                 ? null
                 : Storage::disk(config('filesystems.destination_images_disk'))->url($this->image),
         );
+    }
+
+    public function packages(): BelongsToMany
+    {
+        return $this->belongsToMany(Package::class, 'destination_package');
     }
 }
