@@ -6,6 +6,7 @@ use Database\Factories\CategoryFactory;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 
@@ -46,5 +47,10 @@ class Category extends Model
                 ? null
                 : Storage::disk(config('filesystems.category_images_disk'))->url($this->image),
         );
+    }
+
+    public function packages(): BelongsToMany
+    {
+        return $this->belongsToMany(Package::class, 'category_package');
     }
 }
