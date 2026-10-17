@@ -23,6 +23,8 @@ class DestinationResource extends JsonResource
             'destination_type' => $this->destination_type,
             'is_most_popular' => $this->is_most_popular,
             'status' => $this->status,
+            'count_packages' => $this->whenCounted('packages'),
+            'packages' => PackageResource::collection($this->whenLoaded('packages')),
             'created_at' => $this->created_at?->toISOString(),
             'updated_at' => $this->updated_at?->toISOString(),
         ];

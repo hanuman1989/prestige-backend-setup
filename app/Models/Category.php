@@ -23,6 +23,7 @@ class Category extends Model
         'meta_keyword',
         'meta_description',
         'description',
+        'is_most_popular',
         'status',
     ];
 
@@ -37,7 +38,10 @@ class Category extends Model
     /** @return array<string, string> */
     protected function casts(): array
     {
-        return ['status' => 'boolean'];
+        return [
+            'is_most_popular' => 'boolean',
+            'status' => 'boolean',
+        ];
     }
 
     protected function imageUrl(): Attribute

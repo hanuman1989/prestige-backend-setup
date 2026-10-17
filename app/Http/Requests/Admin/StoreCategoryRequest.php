@@ -23,6 +23,7 @@ class StoreCategoryRequest extends FormRequest
             'meta_keyword' => ['nullable', 'string', 'max:65535'],
             'meta_description' => ['nullable', 'string', 'max:65535'],
             'description' => ['nullable', 'string'],
+            'is_most_popular' => ['sometimes', 'boolean'],
             'status' => ['sometimes', 'boolean'],
             'image' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'extensions:jpg,jpeg,png,webp', 'max:2048'],
         ];

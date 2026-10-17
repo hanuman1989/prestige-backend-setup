@@ -116,7 +116,7 @@ test('active admins can create destinations with SEO fields and active defaults'
         ->assertJsonPath('data.meta_description', 'Travel through Rajasthan.')
         ->assertJsonPath('data.description', '<p>Discover <strong>royal forts</strong>.</p>')
         ->assertJsonPath('data.destination_type', 1)->assertJsonPath('data.is_most_popular', false)
-        ->assertJsonPath('data.status', true)->assertJsonPath('data.image', null)->assertJsonPath('data.image_url', null);
+        ->assertJsonPath('data.status', true)->assertJsonPath('data.image', null)->assertJsonPath('data.image_url', asset('image-not-available.png'));
     $this->assertDatabaseHas('destinations', [
         'destination_type' => 1, 'title' => 'Heritage Tours', 'slug' => 'heritage-tours', 'status' => 1,
         'created_at' => '2026-10-11 12:00:00', 'updated_at' => '2026-10-11 12:00:00',
@@ -210,7 +210,7 @@ test('destination details expose editing fields and nullable values', function (
     $response->assertOk()->assertJsonPath('data.id', $destination->id)->assertJsonPath('data.title', $destination->title)
         ->assertJsonPath('data.slug', $destination->slug)->assertJsonPath('data.meta_title', 'SEO Title')
         ->assertJsonPath('data.meta_keyword', 'travel, luxury')->assertJsonPath('data.meta_description', 'SEO description')
-        ->assertJsonPath('data.status', false)->assertJsonPath('data.image_url', null)
+        ->assertJsonPath('data.status', false)->assertJsonPath('data.image_url', asset('image-not-available.png'))
         ->assertJsonPath('data.description', $destination->description)->assertJsonPath('pagination', null);
 });
 

@@ -8,6 +8,10 @@ use App\Http\Controllers\Admin\CategoryController;
 use App\Http\Controllers\Admin\DestinationController;
 use App\Http\Controllers\Admin\PackageController;
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\CarController as PublicCarController;
+use App\Http\Controllers\CategoryController as PublicCategoryController;
+use App\Http\Controllers\DestinationController as PublicDestinationController;
+use App\Http\Controllers\PackageController as PublicPackageController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('admin')->name('admin.')->group(function (): void {
@@ -37,7 +41,14 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
 
 Route::post('login', [AuthController::class, 'login'])->middleware('throttle:login')->name('login');
 
-Route::get('packages', [PackageController::class, 'publicIndex'])->name('packages.index');
+Route::get('packages/special', [PublicPackageController::class, 'getSpecialPackages'])->name('packages.special');
+Route::apiResource('packages', PublicPackageController::class)->only(['index', 'show']);
+Route::get('destinations/top', [PublicDestinationController::class, 'getTopDestination'])->name('destinations.top');
+Route::apiResource('destinations', PublicDestinationController::class)->only(['index', 'show']);
+Route::get('categories/popular', [PublicCategoryController::class, 'getPopularCategories'])->name('categories.popular');
+Route::apiResource('categories', PublicCategoryController::class)->only(['index', 'show']);
+Route::get('cars/categories', [PublicCarController::class, 'getCarCategories'])->name('cars.categories');
+Route::apiResource('cars', PublicCarController::class)->only(['index', 'show']);
 
 Route::middleware(['auth:frontend', 'abilities:frontend'])->group(function (): void {
     Route::get('me', [AuthController::class, 'me'])->name('me');

@@ -20,7 +20,9 @@ class CategoryResource extends JsonResource
             'image' => $this->image,
             'image_url' => $this->image_url,
             'description' => $this->description,
+            'is_most_popular' => $this->is_most_popular,
             'status' => $this->status,
+            'packages' => PackageResource::collection($this->whenLoaded('packages')),
             'created_at' => $this->created_at?->toISOString(),
             'updated_at' => $this->updated_at?->toISOString(),
         ];

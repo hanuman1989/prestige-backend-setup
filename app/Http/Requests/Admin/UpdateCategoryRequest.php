@@ -23,6 +23,7 @@ class UpdateCategoryRequest extends FormRequest
             'meta_keyword' => ['sometimes', 'nullable', 'string', 'max:65535'],
             'meta_description' => ['sometimes', 'nullable', 'string', 'max:65535'],
             'description' => ['sometimes', 'nullable', 'string'],
+            'is_most_popular' => ['sometimes', 'boolean'],
             'status' => ['sometimes', 'boolean'],
             'image' => ['sometimes', 'nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'extensions:jpg,jpeg,png,webp', 'max:2048'],
         ];

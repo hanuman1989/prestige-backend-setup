@@ -112,16 +112,17 @@ test('active admins can create categories with SEO fields and active defaults', 
         ->assertJsonPath('data.meta_title', 'Royal Heritage')->assertJsonPath('data.meta_keyword', 'forts, palaces')
         ->assertJsonPath('data.meta_description', 'Travel through Rajasthan.')
         ->assertJsonPath('data.description', '<p>Discover <strong>royal forts</strong>.</p>')
-        ->assertJsonPath('data.status', true)->assertJsonPath('data.image', null)->assertJsonPath('data.image_url', null);
+        ->assertJsonPath('data.is_most_popular', false)
+        ->assertJsonPath('data.status', true)->assertJsonPath('data.image', null)->assertJsonPath('data.image_url', asset('image-not-available.png'));
     $this->assertDatabaseHas('categories', [
-        'title' => 'Heritage Tours', 'slug' => 'heritage-tours', 'status' => 1,
+        'title' => 'Heritage Tours', 'slug' => 'heritage-tours', 'status' => 1, 'is_most_popular' => false,
         'meta_title' => 'Royal Heritage', 'meta_keyword' => 'forts, palaces',
         'meta_description' => 'Travel through Rajasthan.', 'description' => $payload['description'], 'image' => null,
     ]);
     expect(array_keys($response->json()))->toBe(['status', 'data', 'pagination', 'message']);
     expect(array_keys($response->json('data')))->toBe([
         'id', 'title', 'slug', 'meta_title', 'meta_keyword', 'meta_description', 'image', 'image_url',
-        'description', 'status', 'created_at', 'updated_at',
+        'description', 'is_most_popular', 'status', 'created_at', 'updated_at',
     ]);
 })->with(['regular admin' => [false], 'super admin' => [true]]);
 
@@ -137,9 +138,62 @@ test('categories accept multipart boolean status strings on creation', function 
     $this->assertDatabaseHas('categories', ['slug' => 'new-category', 'status' => $expectedStatus]);
 })->with(['active' => ['1', true], 'inactive' => ['0', false]]);
 
+test('categories accept boolean popularity flags on creation', function (bool|int|string $popular, bool $expectedPopular) {
+    $admin = AdminUser::factory()->create();
+    $token = $admin->createToken('test', ['admin'])->plainTextToken;
+
+    $response = $this->withToken($token)->postJson('/api/admin/categories', [
+        'title' => 'Heritage Tours', 'slug' => 'heritage-tours', 'is_most_popular' => $popular,
+    ]);
+
+    $response->assertCreated()->assertJsonPath('data.is_most_popular', $expectedPopular);
+    $this->assertDatabaseHas('categories', ['slug' => 'heritage-tours', 'is_most_popular' => $expectedPopular]);
+})->with([
+    'true' => [true, true], 'false' => [false, false],
+    'integer one' => [1, true], 'integer zero' => [0, false],
+    'string one' => ['1', true], 'string zero' => ['0', false],
+]);
+
+test('partial multipart category updates change popularity flags', function (string $popular, bool $expectedPopular) {
+    $admin = AdminUser::factory()->create();
+    $category = Category::factory()->create(['is_most_popular' => ! $expectedPopular]);
+    $token = $admin->createToken('test', ['admin'])->plainTextToken;
+
+    $response = $this->withToken($token)->post('/api/admin/categories/'.$category->id, [
+        '_method' => 'PATCH', 'is_most_popular' => $popular,
+    ], ['Accept' => 'application/json']);
+
+    $response->assertOk()->assertJsonPath('data.is_most_popular', $expectedPopular);
+    $this->assertDatabaseHas('categories', [
+        'id' => $category->id, 'title' => $category->title, 'is_most_popular' => $expectedPopular,
+    ]);
+})->with(['popular' => ['1', true], 'not popular' => ['0', false]]);
+
+test('invalid category popularity returns 422 without persistence', function (string $method, ?string $popular) {
+    $admin = AdminUser::factory()->create();
+    $category = Category::factory()->popular()->create();
+    $token = $admin->createToken('test', ['admin'])->plainTextToken;
+    $uri = '/api/admin/categories'.($method === 'PATCH' ? '/'.$category->id : '');
+
+    $response = $this->withToken($token)->json($method, $uri, [
+        'title' => 'Changed Title', 'slug' => 'changed-slug', 'is_most_popular' => $popular,
+    ]);
+
+    $response->assertUnprocessable()->assertJsonValidationErrors([
+        'is_most_popular' => 'The is most popular field must be true or false.',
+    ]);
+    $this->assertDatabaseCount('categories', 1);
+    $this->assertDatabaseHas('categories', [
+        'id' => $category->id, 'title' => $category->title, 'slug' => $category->slug, 'is_most_popular' => true,
+    ]);
+})->with([
+    'invalid create' => ['POST', 'yes'], 'null create' => ['POST', null],
+    'invalid update' => ['PATCH', 'yes'], 'null update' => ['PATCH', null],
+]);
+
 test('category details expose editing fields and nullable values', function () {
     $admin = AdminUser::factory()->create();
-    $category = Category::factory()->inactive()->create([
+    $category = Category::factory()->inactive()->popular()->create([
         'meta_title' => 'SEO Title', 'meta_keyword' => 'travel, luxury', 'meta_description' => 'SEO description',
     ]);
     $token = $admin->createToken('test', ['admin'])->plainTextToken;
@@ -149,13 +203,14 @@ test('category details expose editing fields and nullable values', function () {
     $response->assertOk()->assertJsonPath('data.id', $category->id)->assertJsonPath('data.title', $category->title)
         ->assertJsonPath('data.slug', $category->slug)->assertJsonPath('data.meta_title', 'SEO Title')
         ->assertJsonPath('data.meta_keyword', 'travel, luxury')->assertJsonPath('data.meta_description', 'SEO description')
-        ->assertJsonPath('data.status', false)->assertJsonPath('data.image_url', null)
+        ->assertJsonPath('data.status', false)->assertJsonPath('data.image_url', asset('image-not-available.png'))
+        ->assertJsonPath('data.is_most_popular', true)
         ->assertJsonPath('data.description', $category->description)->assertJsonPath('pagination', null);
 });
 
 test('category updates are partial and can retain their own unique slug', function () {
     $admin = AdminUser::factory()->create();
-    $category = Category::factory()->create([
+    $category = Category::factory()->popular()->create([
         'title' => 'Original Title', 'slug' => 'original-slug', 'meta_title' => 'Old SEO', 'description' => 'Keep this description.',
     ]);
     $token = $admin->createToken('test', ['admin'])->plainTextToken;
@@ -166,10 +221,11 @@ test('category updates are partial and can retain their own unique slug', functi
 
     $response->assertOk()->assertJsonPath('data.title', 'Updated Title')->assertJsonPath('data.slug', 'original-slug')
         ->assertJsonPath('data.meta_title', null)->assertJsonPath('data.description', 'Keep this description.')
+        ->assertJsonPath('data.is_most_popular', true)
         ->assertJsonPath('data.status', false);
     $this->assertDatabaseHas('categories', [
         'id' => $category->id, 'title' => 'Updated Title', 'slug' => 'original-slug',
-        'meta_title' => null, 'description' => 'Keep this description.', 'status' => 0,
+        'meta_title' => null, 'description' => 'Keep this description.', 'status' => 0, 'is_most_popular' => true,
     ]);
 });
 
@@ -361,6 +417,7 @@ test('category listing uses descending IDs and the standard pagination envelope'
     $response = $this->withToken($token)->getJson('/api/admin/categories?per_page=2');
 
     $response->assertOk()->assertJsonCount(2, 'data')->assertJsonPath('data.0.id', $categories->last()->id)
+        ->assertJsonPath('data.0.is_most_popular', false)
         ->assertJsonPath('data.1.id', $categories[1]->id)->assertJsonPath('pagination.current_page', 1)
         ->assertJsonPath('pagination.last_page', 2)->assertJsonPath('pagination.per_page', 2)
         ->assertJsonPath('pagination.total', 3)->assertJsonPath('pagination.from', 1)->assertJsonPath('pagination.to', 2)

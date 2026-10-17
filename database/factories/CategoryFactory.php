@@ -22,6 +22,7 @@ class CategoryFactory extends Factory
             'meta_description' => null,
             'image' => null,
             'description' => fake()->sentence(),
+            'is_most_popular' => false,
             'status' => true,
         ];
     }
@@ -29,5 +30,10 @@ class CategoryFactory extends Factory
     public function inactive(): static
     {
         return $this->state(fn (array $attributes): array => ['status' => false]);
+    }
+
+    public function popular(): static
+    {
+        return $this->state(fn (array $attributes): array => ['is_most_popular' => true]);
     }
 }
