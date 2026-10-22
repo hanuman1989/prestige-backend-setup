@@ -11,6 +11,7 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\CarController as PublicCarController;
 use App\Http\Controllers\CategoryController as PublicCategoryController;
 use App\Http\Controllers\DestinationController as PublicDestinationController;
+use App\Http\Controllers\EnquiryController;
 use App\Http\Controllers\PackageController as PublicPackageController;
 use Illuminate\Support\Facades\Route;
 
@@ -40,6 +41,7 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
 });
 
 Route::post('login', [AuthController::class, 'login'])->middleware('throttle:login')->name('login');
+Route::apiResource('enquiries', EnquiryController::class)->only('store')->middleware('throttle:enquiries');
 
 Route::get('packages/special', [PublicPackageController::class, 'getSpecialPackages'])->name('packages.special');
 Route::apiResource('packages', PublicPackageController::class)->only(['index', 'show']);
@@ -48,6 +50,8 @@ Route::apiResource('destinations', PublicDestinationController::class)->only(['i
 Route::get('categories/popular', [PublicCategoryController::class, 'getPopularCategories'])->name('categories.popular');
 Route::apiResource('categories', PublicCategoryController::class)->only(['index', 'show']);
 Route::get('cars/categories', [PublicCarController::class, 'getCarCategories'])->name('cars.categories');
+Route::get('cars/categories/recommended', [PublicCarController::class, 'getRecommendedCategories'])->name('cars.categories.recommended');
+Route::get('cars/categories/{category}', [PublicCarController::class, 'categoryDetail'])->name('cars.categories.show');
 Route::apiResource('cars', PublicCarController::class)->only(['index', 'show']);
 
 Route::middleware(['auth:frontend', 'abilities:frontend'])->group(function (): void {

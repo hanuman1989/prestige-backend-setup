@@ -113,7 +113,6 @@ class CarCategoryController extends Controller
         return response()->json([
             'status' => true,
             'data' => new CarCategoryResource($carCategory),
-            'pagination' => null,
             'message' => 'Car category updated successfully.',
         ]);
     }

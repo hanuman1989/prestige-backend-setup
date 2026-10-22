@@ -4,11 +4,14 @@ namespace App\Http\Controllers;
 
 use App\Http\Resources\CategoryResource;
 use App\Models\Category;
+use App\Models\Destination;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use PDOException;
 
 class CategoryController extends Controller
@@ -16,12 +19,28 @@ class CategoryController extends Controller
     public function index(Request $request): JsonResponse
     {
         $filters = $request->validate([
+            'destination_type' => ['sometimes', 'nullable', 'integer', Rule::in([1, 2])],
+            'is_most_popular' => ['sometimes', 'nullable', 'boolean'],
             'page' => ['sometimes', 'integer', 'min:1'],
             'per_page' => ['sometimes', 'integer', 'min:1', 'max:100'],
         ]);
 
         try {
-            $categories = Category::query()->where('status', true)->orderByDesc('id')
+            $query = Category::query()->where('status', true)
+                ->withCount(['packages' => fn (Builder $packages): Builder => $packages->published()]);
+
+            if (isset($filters['destination_type'])) {
+                $query->whereHas('packages', fn (Builder $packages): Builder => $packages->published()
+                    ->whereHas('destinations', fn (Builder $destinations): Builder => $destinations
+                        ->where('destinations.status', true)
+                        ->where('destinations.destination_type', (int) $filters['destination_type'])));
+            }
+
+            if (isset($filters['is_most_popular'])) {
+                $query->where('is_most_popular', (bool) $filters['is_most_popular']);
+            }
+
+            $categories = $query->orderByDesc('id')
                 ->paginate($filters['per_page'] ?? 15)->appends($filters);
         } catch (QueryException|PDOException $exception) {
             return $this->databaseFailure($exception, 'Unable to retrieve categories. Please try again later.');
@@ -52,7 +71,14 @@ class CategoryController extends Controller
         ]);
 
         try {
-            $category = Category::query()->where('status', true)->findOrFail($category);
+            $category = Category::query()->where('status', true)->where('slug', $category)
+                ->withCount(['packages' => fn (Builder $packages): Builder => $packages->published()])->firstOrFail();
+            $destinations = Destination::query()->where('status', true)
+                ->whereHas('packages', fn (Builder $packages): Builder => $packages->published()
+                    ->whereHas('categories', fn (Builder $categories): Builder => $categories->whereKey($category->id)))
+                ->orderBy('title')->orderBy('slug')->get(['title', 'slug']);
+            $category->setRelation('destinations', $destinations);
+
             $packages = $category->packages()->published()->with([
                 'destinations' => fn (BelongsToMany $destinations): BelongsToMany => $destinations->where('status', true),
                 'images' => fn (HasMany $images): HasMany => $images->limit(1),
@@ -87,6 +113,7 @@ class CategoryController extends Controller
 
         try {
             $categories = Category::query()->where('status', true)->where('is_most_popular', true)
+                ->withCount(['packages' => fn (Builder $packages): Builder => $packages->published()])
                 ->orderByDesc('id')->limit($filters['limit'] ?? 20)->get();
         } catch (QueryException|PDOException $exception) {
             return $this->databaseFailure($exception, 'Unable to retrieve popular categories. Please try again later.');

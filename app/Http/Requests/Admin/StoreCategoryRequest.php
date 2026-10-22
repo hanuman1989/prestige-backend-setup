@@ -26,6 +26,7 @@ class StoreCategoryRequest extends FormRequest
             'is_most_popular' => ['sometimes', 'boolean'],
             'status' => ['sometimes', 'boolean'],
             'image' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'extensions:jpg,jpeg,png,webp', 'max:2048'],
+            'banner' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'extensions:jpg,jpeg,png,webp', 'max:10240'],
         ];
     }
 

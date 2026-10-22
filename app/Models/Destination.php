@@ -29,12 +29,17 @@ class Destination extends Model
     ];
 
     /** @var list<string> */
-    protected $appends = ['image_url'];
+    protected $appends = ['image_url', 'banner_url'];
 
     /**
      * A transient upload consumed by the observer inside a database transaction.
      */
     public ?UploadedFile $uploadedImage = null;
+
+    /**
+     * A transient banner upload consumed by the observer inside a database transaction.
+     */
+    public ?UploadedFile $uploadedBanner = null;
 
     /** @return array<string, string> */
     protected function casts(): array
@@ -52,6 +57,15 @@ class Destination extends Model
             get: fn (): ?string => $this->image === null
                 ? null
                 : Storage::disk(config('filesystems.destination_images_disk'))->url($this->image),
+        );
+    }
+
+    protected function bannerUrl(): Attribute
+    {
+        return Attribute::make(
+            get: fn (): ?string => $this->banner === null
+                ? null
+                : Storage::disk(config('filesystems.destination_images_disk'))->url($this->banner),
         );
     }
 

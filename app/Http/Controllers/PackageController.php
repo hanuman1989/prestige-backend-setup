@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use PDOException;
 
 class PackageController extends Controller
@@ -19,12 +20,16 @@ class PackageController extends Controller
         $filters = $request->validate([
             'keyword' => ['sometimes', 'nullable', 'string', 'max:255'],
             'status' => ['sometimes', 'nullable', 'boolean'],
+            'destination_type' => ['sometimes', 'nullable', 'integer', Rule::in([1, 2])],
+            'category_slug' => ['sometimes', 'nullable', 'string', 'max:255', Rule::exists('categories', 'slug')->where('status', true)],
+            'destination_slug' => ['sometimes', 'nullable', 'string', 'max:255', Rule::exists('destinations', 'slug')->where('status', true)],
             'page' => ['sometimes', 'integer', 'min:1'],
             'per_page' => ['sometimes', 'integer', 'min:1', 'max:100'],
         ]);
 
         try {
             $query = Package::query()->published()->with([
+                'categories' => fn (BelongsToMany $categories): BelongsToMany => $categories->where('status', true),
                 'destinations' => fn (BelongsToMany $destinations): BelongsToMany => $destinations->where('status', true),
                 'images' => fn (HasMany $images): HasMany => $images->limit(1),
             ]);
@@ -40,6 +45,20 @@ class PackageController extends Controller
 
             if (isset($filters['status'])) {
                 $query->where('status', (bool) $filters['status']);
+            }
+
+            if (isset($filters['category_slug'])) {
+                $query->whereHas('categories', fn (Builder $categories): Builder => $categories->where('categories.slug', $filters['category_slug']));
+            }
+
+            if (isset($filters['destination_slug'])) {
+                $query->whereHas('destinations', fn (Builder $destinations): Builder => $destinations->where('destinations.slug', $filters['destination_slug']));
+            }
+
+            if (isset($filters['destination_type'])) {
+                $query->whereHas('destinations', fn (Builder $destinations): Builder => $destinations
+                    ->where('destinations.status', true)
+                    ->where('destinations.destination_type', (int) $filters['destination_type']));
             }
 
             $packages = $query->orderByDesc('id')->paginate($filters['per_page'] ?? 15)->appends($filters);
@@ -72,7 +91,7 @@ class PackageController extends Controller
                 'destinations' => fn (BelongsToMany $destinations): BelongsToMany => $destinations->where('status', true),
                 'itineraries',
                 'images',
-            ])->findOrFail($package);
+            ])->where('slug', $package)->firstOrFail();
         } catch (QueryException|PDOException $exception) {
             return $this->databaseFailure($exception, 'Unable to retrieve the package. Please try again later.');
         }

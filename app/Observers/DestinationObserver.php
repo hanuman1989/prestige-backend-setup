@@ -21,7 +21,7 @@ class DestinationObserver
      */
     public function saving(Destination $destination): void
     {
-        if ($destination->uploadedImage === null) {
+        if ($destination->uploadedImage === null && $destination->uploadedBanner === null) {
             return;
         }
 
@@ -32,33 +32,46 @@ class DestinationObserver
         }
 
         $disk = config('filesystems.destination_images_disk');
-        $filename = Str::random(40).'.'.$destination->uploadedImage->extension();
-        $path = 'destinations/'.$filename;
 
-        $this->pendingImages[$path] = [
-            'disk' => $disk,
-            'connection' => $connection->getName(),
-            'level' => $connection->transactionLevel(),
-        ];
+        foreach (['image' => 'uploadedImage', 'banner' => 'uploadedBanner'] as $attribute => $uploadProperty) {
+            $upload = $destination->{$uploadProperty};
 
-        if ($destination->uploadedImage->storeAs('destinations', $filename, $disk) === false) {
-            throw new RuntimeException('Unable to store the destination image.');
+            if ($upload === null) {
+                continue;
+            }
+
+            $directory = $attribute === 'banner' ? 'destinations/banners' : 'destinations';
+            $filename = Str::random(40).'.'.$upload->extension();
+            $path = $directory.'/'.$filename;
+
+            $this->pendingImages[$path] = [
+                'disk' => $disk,
+                'connection' => $connection->getName(),
+                'level' => $connection->transactionLevel(),
+            ];
+
+            if ($upload->storeAs($directory, $filename, $disk) === false) {
+                throw new RuntimeException('Unable to store the destination '.$attribute.'.');
+            }
+
+            $destination->{$attribute} = $path;
+            $destination->{$uploadProperty} = null;
         }
-
-        $destination->image = $path;
-        $destination->uploadedImage = null;
     }
 
     public function updated(Destination $destination): void
     {
-        if ($destination->wasChanged('image')) {
-            $this->deleteAfterCommit($destination, $destination->getRawOriginal('image'));
+        foreach (['image', 'banner'] as $attribute) {
+            if ($destination->wasChanged($attribute)) {
+                $this->deleteAfterCommit($destination, $destination->getRawOriginal($attribute));
+            }
         }
     }
 
     public function deleted(Destination $destination): void
     {
         $this->deleteAfterCommit($destination, $destination->getRawOriginal('image'));
+        $this->deleteAfterCommit($destination, $destination->getRawOriginal('banner'));
     }
 
     /**

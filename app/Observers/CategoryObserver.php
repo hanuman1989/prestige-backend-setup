@@ -21,7 +21,7 @@ class CategoryObserver
      */
     public function saving(Category $category): void
     {
-        if ($category->uploadedImage === null) {
+        if ($category->uploadedImage === null && $category->uploadedBanner === null) {
             return;
         }
 
@@ -32,33 +32,46 @@ class CategoryObserver
         }
 
         $disk = config('filesystems.category_images_disk');
-        $filename = Str::random(40).'.'.$category->uploadedImage->extension();
-        $path = 'categories/'.$filename;
 
-        $this->pendingImages[$path] = [
-            'disk' => $disk,
-            'connection' => $connection->getName(),
-            'level' => $connection->transactionLevel(),
-        ];
+        foreach (['image' => 'uploadedImage', 'banner' => 'uploadedBanner'] as $attribute => $uploadProperty) {
+            $upload = $category->{$uploadProperty};
 
-        if ($category->uploadedImage->storeAs('categories', $filename, $disk) === false) {
-            throw new RuntimeException('Unable to store the category image.');
+            if ($upload === null) {
+                continue;
+            }
+
+            $directory = $attribute === 'banner' ? 'categories/banners' : 'categories';
+            $filename = Str::random(40).'.'.$upload->extension();
+            $path = $directory.'/'.$filename;
+
+            $this->pendingImages[$path] = [
+                'disk' => $disk,
+                'connection' => $connection->getName(),
+                'level' => $connection->transactionLevel(),
+            ];
+
+            if ($upload->storeAs($directory, $filename, $disk) === false) {
+                throw new RuntimeException('Unable to store the category '.$attribute.'.');
+            }
+
+            $category->{$attribute} = $path;
+            $category->{$uploadProperty} = null;
         }
-
-        $category->image = $path;
-        $category->uploadedImage = null;
     }
 
     public function updated(Category $category): void
     {
-        if ($category->wasChanged('image')) {
-            $this->deleteAfterCommit($category, $category->getRawOriginal('image'));
+        foreach (['image', 'banner'] as $attribute) {
+            if ($category->wasChanged($attribute)) {
+                $this->deleteAfterCommit($category, $category->getRawOriginal($attribute));
+            }
         }
     }
 
     public function deleted(Category $category): void
     {
         $this->deleteAfterCommit($category, $category->getRawOriginal('image'));
+        $this->deleteAfterCommit($category, $category->getRawOriginal('banner'));
     }
 
     /**

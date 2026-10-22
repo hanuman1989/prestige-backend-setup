@@ -23,6 +23,7 @@ class CarCategory extends Model
         'meta_keyword',
         'meta_description',
         'description',
+        'is_recommended',
         'status',
     ];
 
@@ -38,6 +39,7 @@ class CarCategory extends Model
     protected function casts(): array
     {
         return [
+            'is_recommended' => 'boolean',
             'status' => 'boolean',
         ];
     }

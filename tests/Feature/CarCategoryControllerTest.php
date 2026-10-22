@@ -112,16 +112,17 @@ test('active admins can create car categories with SEO fields and active default
         ->assertJsonPath('data.meta_title', 'Royal Heritage')->assertJsonPath('data.meta_keyword', 'forts, palaces')
         ->assertJsonPath('data.meta_description', 'Travel through Rajasthan.')
         ->assertJsonPath('data.description', '<p>Discover <strong>royal forts</strong>.</p>')
+        ->assertJsonPath('data.is_recommended', false)
         ->assertJsonPath('data.status', true)->assertJsonPath('data.image', null)->assertJsonPath('data.image_url', null);
     $this->assertDatabaseHas('car_categories', [
-        'title' => 'Heritage Tours', 'slug' => 'heritage-tours', 'status' => 1,
+        'title' => 'Heritage Tours', 'slug' => 'heritage-tours', 'status' => 1, 'is_recommended' => false,
         'meta_title' => 'Royal Heritage', 'meta_keyword' => 'forts, palaces',
         'meta_description' => 'Travel through Rajasthan.', 'description' => $payload['description'], 'image' => null,
     ]);
     expect(array_keys($response->json()))->toBe(['status', 'data', 'pagination', 'message']);
     expect(array_keys($response->json('data')))->toBe([
         'id', 'title', 'slug', 'meta_title', 'meta_keyword', 'meta_description', 'image', 'image_url',
-        'description', 'status', 'created_at', 'updated_at',
+        'description', 'is_recommended', 'status', 'created_at', 'updated_at',
     ]);
 })->with(['regular admin' => [false], 'super admin' => [true]]);
 
@@ -137,9 +138,75 @@ test('car categories accept multipart boolean status strings on creation', funct
     $this->assertDatabaseHas('car_categories', ['slug' => 'new-car-category', 'status' => $expectedStatus]);
 })->with(['active' => ['1', true], 'inactive' => ['0', false]]);
 
+test('car categories accept boolean recommendation flags on creation', function (bool|int|string $recommended, bool $expectedRecommended) {
+    $admin = AdminUser::factory()->create();
+    $token = $admin->createToken('test', ['admin'])->plainTextToken;
+
+    $response = $this->withToken($token)->postJson('/api/admin/car-categories', [
+        'title' => 'SUV', 'slug' => 'suv', 'is_recommended' => $recommended,
+    ]);
+
+    $response->assertCreated()->assertJsonPath('data.is_recommended', $expectedRecommended);
+    $this->assertDatabaseHas('car_categories', ['slug' => 'suv', 'is_recommended' => $expectedRecommended]);
+})->with([
+    'true' => [true, true], 'false' => [false, false],
+    'integer one' => [1, true], 'integer zero' => [0, false],
+    'string one' => ['1', true], 'string zero' => ['0', false],
+]);
+
+test('partial multipart car category updates change recommendation flags', function (string $recommended, bool $expectedRecommended) {
+    $admin = AdminUser::factory()->create();
+    $carCategory = CarCategory::factory()->create(['is_recommended' => ! $expectedRecommended]);
+    $token = $admin->createToken('test', ['admin'])->plainTextToken;
+
+    $response = $this->withToken($token)->post('/api/admin/car-categories/'.$carCategory->id, [
+        '_method' => 'PATCH', 'is_recommended' => $recommended,
+    ], ['Accept' => 'application/json']);
+
+    $response->assertOk()->assertJsonPath('data.is_recommended', $expectedRecommended);
+    $this->assertDatabaseHas('car_categories', [
+        'id' => $carCategory->id, 'title' => $carCategory->title, 'is_recommended' => $expectedRecommended,
+    ]);
+})->with(['recommended' => ['1', true], 'not recommended' => ['0', false]]);
+
+test('partial JSON car category updates change recommendation flags', function (bool $recommended) {
+    $admin = AdminUser::factory()->create();
+    $carCategory = CarCategory::factory()->create(['is_recommended' => ! $recommended]);
+    $token = $admin->createToken('test', ['admin'])->plainTextToken;
+
+    $response = $this->withToken($token)->patchJson('/api/admin/car-categories/'.$carCategory->id, [
+        'is_recommended' => $recommended,
+    ]);
+
+    $response->assertOk()->assertJsonPath('data.is_recommended', $recommended);
+    $this->assertDatabaseHas('car_categories', ['id' => $carCategory->id, 'is_recommended' => $recommended]);
+})->with(['recommended' => [true], 'not recommended' => [false]]);
+
+test('invalid car category recommendations return 422 without persistence', function (string $method, ?string $recommended) {
+    $admin = AdminUser::factory()->create();
+    $carCategory = CarCategory::factory()->recommended()->create();
+    $token = $admin->createToken('test', ['admin'])->plainTextToken;
+    $uri = '/api/admin/car-categories'.($method === 'PATCH' ? '/'.$carCategory->id : '');
+
+    $response = $this->withToken($token)->json($method, $uri, [
+        'title' => 'Changed Title', 'slug' => 'changed-slug', 'is_recommended' => $recommended,
+    ]);
+
+    $response->assertUnprocessable()->assertJsonValidationErrors([
+        'is_recommended' => 'The is recommended field must be true or false.',
+    ]);
+    $this->assertDatabaseCount('car_categories', 1);
+    $this->assertDatabaseHas('car_categories', [
+        'id' => $carCategory->id, 'title' => $carCategory->title, 'slug' => $carCategory->slug, 'is_recommended' => true,
+    ]);
+})->with([
+    'invalid create' => ['POST', 'yes'], 'null create' => ['POST', null],
+    'invalid update' => ['PATCH', 'yes'], 'null update' => ['PATCH', null],
+]);
+
 test('car category details expose editing fields and nullable values', function () {
     $admin = AdminUser::factory()->create();
-    $carCategory = CarCategory::factory()->inactive()->create([
+    $carCategory = CarCategory::factory()->inactive()->recommended()->create([
         'meta_title' => 'SEO Title', 'meta_keyword' => 'travel, luxury', 'meta_description' => 'SEO description',
     ]);
     $token = $admin->createToken('test', ['admin'])->plainTextToken;
@@ -149,13 +216,14 @@ test('car category details expose editing fields and nullable values', function 
     $response->assertOk()->assertJsonPath('data.id', $carCategory->id)->assertJsonPath('data.title', $carCategory->title)
         ->assertJsonPath('data.slug', $carCategory->slug)->assertJsonPath('data.meta_title', 'SEO Title')
         ->assertJsonPath('data.meta_keyword', 'travel, luxury')->assertJsonPath('data.meta_description', 'SEO description')
+        ->assertJsonPath('data.is_recommended', true)
         ->assertJsonPath('data.status', false)->assertJsonPath('data.image_url', null)
         ->assertJsonPath('data.description', $carCategory->description)->assertJsonPath('pagination', null);
 });
 
 test('car category updates are partial and can retain their own unique slug', function () {
     $admin = AdminUser::factory()->create();
-    $carCategory = CarCategory::factory()->create([
+    $carCategory = CarCategory::factory()->recommended()->create([
         'title' => 'Original Title', 'slug' => 'original-slug', 'meta_title' => 'Old SEO', 'description' => 'Keep this description.',
     ]);
     $token = $admin->createToken('test', ['admin'])->plainTextToken;
@@ -166,10 +234,11 @@ test('car category updates are partial and can retain their own unique slug', fu
 
     $response->assertOk()->assertJsonPath('data.title', 'Updated Title')->assertJsonPath('data.slug', 'original-slug')
         ->assertJsonPath('data.meta_title', null)->assertJsonPath('data.description', 'Keep this description.')
+        ->assertJsonPath('data.is_recommended', true)
         ->assertJsonPath('data.status', false);
     $this->assertDatabaseHas('car_categories', [
         'id' => $carCategory->id, 'title' => 'Updated Title', 'slug' => 'original-slug',
-        'meta_title' => null, 'description' => 'Keep this description.', 'status' => 0,
+        'meta_title' => null, 'description' => 'Keep this description.', 'status' => 0, 'is_recommended' => true,
     ]);
 });
 
@@ -361,6 +430,7 @@ test('car category listing uses descending IDs and the standard pagination envel
     $response = $this->withToken($token)->getJson('/api/admin/car-categories?per_page=2');
 
     $response->assertOk()->assertJsonCount(2, 'data')->assertJsonPath('data.0.id', $carCategories->last()->id)
+        ->assertJsonPath('data.0.is_recommended', false)
         ->assertJsonPath('data.1.id', $carCategories[1]->id)->assertJsonPath('pagination.current_page', 1)
         ->assertJsonPath('pagination.last_page', 2)->assertJsonPath('pagination.per_page', 2)
         ->assertJsonPath('pagination.total', 3)->assertJsonPath('pagination.from', 1)->assertJsonPath('pagination.to', 2)

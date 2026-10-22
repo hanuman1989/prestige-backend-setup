@@ -72,10 +72,33 @@ class CarController extends Controller
         ]);
     }
 
+    public function getRecommendedCategories(Request $request): JsonResponse
+    {
+        $filters = $request->validate([
+            'limit' => ['sometimes', 'integer', 'min:1'],
+        ]);
+
+        try {
+            $categories = CarCategory::query()->where('status', true)->where('is_recommended', true)
+                ->withCount('cars')
+                ->orderByDesc('id')->limit($filters['limit'] ?? 10)->get();
+        } catch (QueryException|PDOException $exception) {
+            return $this->databaseFailure($exception, 'Unable to retrieve recommended car categories. Please try again later.');
+        }
+
+        return response()->json([
+            'status' => true,
+            'data' => CarCategoryResource::collection($categories),
+            'pagination' => null,
+            'message' => 'Recommended car categories retrieved successfully.',
+        ]);
+    }
+
     public function getCarCategories(): JsonResponse
     {
         try {
-            $categories = CarCategory::query()->where('status', true)->orderByDesc('id')->limit(10)->get();
+            $categories = CarCategory::query()->where('status', true)
+                ->orderByDesc('is_recommended')->orderBy('title')->orderByDesc('id')->limit(100)->get();
         } catch (QueryException|PDOException $exception) {
             return $this->databaseFailure($exception, 'Unable to retrieve car categories. Please try again later.');
         }
@@ -85,6 +108,22 @@ class CarController extends Controller
             'data' => CarCategoryResource::collection($categories),
             'pagination' => null,
             'message' => 'Car categories retrieved successfully.',
+        ]);
+    }
+
+    public function categoryDetail(string $category): JsonResponse
+    {
+        try {
+            $category = CarCategory::query()->where('status', true)->where('slug', $category)->firstOrFail();
+        } catch (QueryException|PDOException $exception) {
+            return $this->databaseFailure($exception, 'Unable to retrieve the car category. Please try again later.');
+        }
+
+        return response()->json([
+            'status' => true,
+            'data' => new CarCategoryResource($category),
+            'pagination' => null,
+            'message' => 'Car category retrieved successfully.',
         ]);
     }
 }

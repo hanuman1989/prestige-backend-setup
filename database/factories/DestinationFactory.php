@@ -21,6 +21,7 @@ class DestinationFactory extends Factory
             'meta_keyword' => null,
             'meta_description' => null,
             'image' => null,
+            'banner' => null,
             'description' => fake()->sentence(),
             'destination_type' => 1,
             'is_most_popular' => false,

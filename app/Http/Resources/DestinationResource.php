@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources;
 
+use App\Models\Category;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -19,11 +20,18 @@ class DestinationResource extends JsonResource
             'meta_description' => $this->meta_description,
             'image' => $this->image,
             'image_url' => $this->image_url,
+            'banner' => $this->banner,
+            'banner_url' => $this->banner_url,
             'description' => $this->description,
             'destination_type' => $this->destination_type,
             'is_most_popular' => $this->is_most_popular,
             'status' => $this->status,
             'count_packages' => $this->whenCounted('packages'),
+            'categories' => $this->whenLoaded('categories', fn (): array => $this->categories
+                ->map(fn (Category $category): array => [
+                    'title' => $category->title,
+                    'slug' => $category->slug,
+                ])->all()),
             'packages' => PackageResource::collection($this->whenLoaded('packages')),
             'created_at' => $this->created_at?->toISOString(),
             'updated_at' => $this->updated_at?->toISOString(),

@@ -74,6 +74,8 @@ class AppServiceProvider extends ServiceProvider
         Event::listen(TransactionCommitted::class, [PackageObserver::class, 'committed']);
         Event::listen(TransactionRolledBack::class, [PackageObserver::class, 'rolledBack']);
 
+        RateLimiter::for('enquiries', fn (Request $request): Limit => Limit::perMinute(10)->by($request->ip()));
+
         RateLimiter::for('login', function (Request $request): array {
             $email = $request->input('email');
             $email = is_string($email) ? Str::lower($email) : '';

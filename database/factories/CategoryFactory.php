@@ -21,6 +21,7 @@ class CategoryFactory extends Factory
             'meta_keyword' => null,
             'meta_description' => null,
             'image' => null,
+            'banner' => null,
             'description' => fake()->sentence(),
             'is_most_popular' => false,
             'status' => true,

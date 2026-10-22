@@ -70,8 +70,9 @@ class CategoryController extends Controller
     {
         try {
             $category = DB::transaction(function () use ($request): Category {
-                $category = new Category($request->safe()->except('image'));
+                $category = new Category($request->safe()->except(['image', 'banner']));
                 $category->uploadedImage = $request->file('image');
+                $category->uploadedBanner = $request->file('banner');
                 $category->save();
 
                 return $category->refresh();
@@ -102,8 +103,9 @@ class CategoryController extends Controller
     {
         try {
             DB::transaction(function () use ($request, $category): void {
-                $category->fill($request->safe()->except('image'));
+                $category->fill($request->safe()->except(['image', 'banner']));
                 $category->uploadedImage = $request->file('image');
+                $category->uploadedBanner = $request->file('banner');
                 $category->save();
             });
         } catch (QueryException|PDOException $exception) {

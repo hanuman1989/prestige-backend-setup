@@ -20,7 +20,9 @@ class CarCategoryResource extends JsonResource
             'image' => $this->image,
             'image_url' => $this->image_url,
             'description' => $this->description,
+            'is_recommended' => $this->is_recommended,
             'status' => $this->status,
+            'car_count' => $this->whenCounted('cars'),
             'created_at' => $this->created_at?->toISOString(),
             'updated_at' => $this->updated_at?->toISOString(),
         ];

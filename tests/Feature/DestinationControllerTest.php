@@ -126,6 +126,7 @@ test('active admins can create destinations with SEO fields and active defaults'
     expect(array_keys($response->json()))->toBe(['status', 'data', 'pagination', 'message']);
     expect(array_keys($response->json('data')))->toBe([
         'id', 'title', 'slug', 'meta_title', 'meta_keyword', 'meta_description', 'image', 'image_url',
+        'banner', 'banner_url',
         'description', 'destination_type', 'is_most_popular', 'status', 'created_at', 'updated_at',
     ]);
 })->with(['regular admin' => [false], 'super admin' => [true]]);

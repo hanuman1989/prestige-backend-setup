@@ -22,6 +22,7 @@ class CarCategoryFactory extends Factory
             'meta_description' => null,
             'image' => null,
             'description' => fake()->sentence(),
+            'is_recommended' => false,
             'status' => true,
         ];
     }
@@ -29,5 +30,10 @@ class CarCategoryFactory extends Factory
     public function inactive(): static
     {
         return $this->state(fn (array $attributes): array => ['status' => false]);
+    }
+
+    public function recommended(): static
+    {
+        return $this->state(fn (array $attributes): array => ['is_recommended' => true]);
     }
 }

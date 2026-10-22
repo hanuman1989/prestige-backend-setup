@@ -76,8 +76,9 @@ class DestinationController extends Controller
     {
         try {
             $destination = DB::transaction(function () use ($request): Destination {
-                $destination = new Destination($request->safe()->except('image'));
+                $destination = new Destination($request->safe()->except(['image', 'banner']));
                 $destination->uploadedImage = $request->file('image');
+                $destination->uploadedBanner = $request->file('banner');
                 $destination->save();
 
                 return $destination->refresh();
@@ -108,8 +109,9 @@ class DestinationController extends Controller
     {
         try {
             DB::transaction(function () use ($request, $destination): void {
-                $destination->fill($request->safe()->except('image'));
+                $destination->fill($request->safe()->except(['image', 'banner']));
                 $destination->uploadedImage = $request->file('image');
+                $destination->uploadedBanner = $request->file('banner');
                 $destination->save();
             });
         } catch (QueryException|PDOException $exception) {
